@@ -57,25 +57,29 @@ git clone https://github.com/fatalist/inventory.git
 cd inventory
 mvn clean install
 mvn spring-boot:run
+```
 访问 http://localhost:8080/login
 默认账号：admin / 123456
 
 ## 项目结构
+```
 src/main/java/com/example/inventory/
-├── config/ # Spring Security 配置
-├── controller/ # REST API 控制器
-├── service/ # 业务逻辑层
-├── repository/ # JPA 数据访问层
-├── entity/ # 数据库实体类
-└── dto/ # 数据传输对象
-
+├── config/              # Spring Security 配置
+├── controller/          # REST API 控制器
+├── service/             # 业务逻辑层
+├── repository/          # JPA 数据访问层
+├── entity/              # 数据库实体类
+└── dto/                 # 数据传输对象
+```
+```
 src/main/resources/
-├── application.yml # 配置文件
-├── templates/ # Thymeleaf 页面
-│ ├── login.html
-│ ├── dashboard.html
-│ └── fragments/ # 页面片段
-└── static/ # 静态资源
+├── application.yml      # 配置文件
+├── templates/           # Thymeleaf 页面
+│   ├── login.html
+│   ├── dashboard.html
+│   └── fragments/       # 页面片段
+└── static/              # 静态资源
+```
 ## 主要接口示例
 | 功能 | 方法 | URL |
 |------|------|-----|
