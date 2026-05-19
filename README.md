@@ -58,54 +58,38 @@ cd inventory
 mvn clean install
 mvn spring-boot:run
 访问 http://localhost:8080/login
-
 默认账号：admin / 123456
 
-项目结构
-text
+## 项目结构
 src/main/java/com/example/inventory/
-├── config/              # Spring Security 配置
-├── controller/          # REST API 控制器
-├── service/             # 业务逻辑层
-├── repository/          # JPA 数据访问层
-├── entity/              # 数据库实体类
-└── dto/                 # 数据传输对象
+├── config/ # Spring Security 配置
+├── controller/ # REST API 控制器
+├── service/ # 业务逻辑层
+├── repository/ # JPA 数据访问层
+├── entity/ # 数据库实体类
+└── dto/ # 数据传输对象
 
 src/main/resources/
-├── application.yml      # 配置文件
-├── templates/           # Thymeleaf 页面
-│   ├── login.html
-│   ├── dashboard.html
-│   └── fragments/       # 页面片段
-└── static/              # 静态资源
-主要接口示例
-功能	方法	URL
-商品列表	GET	/api/product/list
-入库	POST	/api/inbound/create?orderNo=...&supplier=...&inboundDate=...&operator=... + JSON body
-销售出库	POST	/api/outbound/sale (JSON body)
-利润统计	GET	/api/profit/statistics
-库存查询	GET	/api/inventory/byProductId/{id}
-项目亮点
+├── application.yml # 配置文件
+├── templates/ # Thymeleaf 页面
+│ ├── login.html
+│ ├── dashboard.html
+│ └── fragments/ # 页面片段
+└── static/ # 静态资源
+## 主要接口示例
+| 功能 | 方法 | URL |
+|------|------|-----|
+| 商品列表 | GET | /api/product/list |
+| 入库 | POST | /api/inbound/create?orderNo=...&supplier=...&inboundDate=...&operator=... + JSON body |
+| 销售出库 | POST | /api/outbound/sale (JSON body) |
+| 利润统计 | GET | /api/profit/statistics |
+| 库存查询 | GET | /api/inventory/byProductId/{id} |
+## 项目亮点
 成本利润算法：使用最新入库成本价计算利润，避免简单营业额统计
-
 扫码枪模拟：前端监听回车事件，实现扫码枪输入体验
-
 库存预警：库存低于预警值时行高亮显示
-
 动态页面加载：通过 AJAX 加载 Thymeleaf 片段，实现单页面式交互
-
-作者
-fatalist - GitHub
-
-许可证
+## 作者
+fatalistm - GitHub
+## 许可证
 本项目仅用于学习交流，未经许可不得用于商业用途。
-
-text
-
-2. **粘贴**到网页编辑器中（光标在空白处按 `Ctrl + V`）。
-
-3. **提交修改**：
-   - 在页面底部找到 **Commit changes** 区域
-   - 填写提交说明（例如 `添加README文档`）
-   - 选择 **Commit directly to the main branch**
-   - 点击 **Commit changes** 按钮
