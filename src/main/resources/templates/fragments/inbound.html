@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>入库记录</title>
+</head>
+<body>
+<div th:fragment="inbound">
+    <h2>入库记录</h2>
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-bordered" id="inboundTable">
+                <thead>
+                <tr><th>入库单号</th><th>供应商</th><th>入库日期</th><th>总金额</th><th>操作人</th><th>备注</th></tr>
+                </thead>
+                <tbody id="inboundTbody">
+                <tr><td colspan="6" class="text-center">加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        function loadInboundRecords() {
+            $.get("/api/inbound/list", function(orders) {
+                let tbody = $("#inboundTbody");
+                tbody.empty();
+                if (orders.length === 0) {
+                    tbody.append('<tr><td colspan="6" class="text-center">暂无数据</td></tr>');
+                } else {
+                    orders.forEach(order => {
+                        let row = `<tr>
+                            <td>${order.orderNo}</td>
+                            <td>${order.supplier || ''}</td>
+                            <td>${order.inboundDate}</td>
+                            <td>${order.totalAmount}</td>
+                            <td>${order.operator || ''}</td>
+                            <td>${order.remark || ''}</td>
+                        </tr>`;
+                        tbody.append(row);
+                    });
+                }
+            }).fail(() => {
+                $("#inboundTbody").html('<tr><td colspan="6" class="text-center text-danger">加载失败</td></tr>');
+            });
+        }
+        $(document).ready(function() {
+            loadInboundRecords();
+        });
+    </script>
+</div>
+</body>
+</html>

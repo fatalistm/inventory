@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>利润统计</title>
+</head>
+<body>
+<div th:fragment="profit">
+    <h2>销售利润统计</h2>
+    <div class="card">
+        <div class="card-body">
+            <div id="profitSummary" class="alert alert-info">总利润：加载中...</div>
+            <table class="table table-bordered" id="profitTable">
+                <thead>
+                <tr><th>销售单号</th><th>客户</th><th>日期</th><th>商品</th><th>数量</th><th>成本价</th><th>销售价</th><th>利润</th></tr>
+                </thead>
+                <tbody id="profitTbody"></tbody>
+            </table>
+        </div>
+    </div>
+    <script>
+        function loadProfit() {
+            $.get("/api/profit/statistics", function(data) {
+                $("#profitSummary").text("总利润：¥" + data.totalProfit.toFixed(2));
+                let tbody = $("#profitTbody");
+                tbody.empty();
+                data.details.forEach(d => {
+                    let row = `<tr>
+                        <td>${d.orderNo}</td><td>${d.customer || ''}</td><td>${d.outboundDate}</td>
+                        <td>${d.productName}</td><td>${d.quantity}</td>
+                        <td>${d.costPrice}</td><td>${d.salePrice}</td>
+                        <td>${d.profit.toFixed(2)}</td>
+                    </tr>`;
+                    tbody.append(row);
+                });
+            }).fail(() => $("#profitTbody").html('<tr><td colspan="8">加载失败</td></tr>'));
+        }
+        $(document).ready(loadProfit);
+    </script>
+</div>
+</body>
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>销售出库</title>
+</head>
+<body>
+<div th:fragment="saleOutbound">
+    <h2>销售出库</h2>
+    <div class="card">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <label>商品SKU</label>
+                    <input type="text" id="sku" class="form-control" placeholder="扫码或输入SKU">
+                </div>
+                <div class="col-md-2">
+                    <label>数量</label>
+                    <input type="number" id="quantity" class="form-control" placeholder="数量">
+                </div>
+                <div class="col-md-2">
+                    <label>销售单价</label>
+                    <input type="number" step="0.01" id="salePrice" class="form-control" placeholder="单价">
+                </div>
+                <div class="col-md-3">
+                    <label>客户</label>
+                    <input type="text" id="customer" class="form-control" placeholder="客户名称">
+                </div>
+                <div class="col-md-2 align-self-end">
+                    <button class="btn btn-success" onclick="addSaleItem()">添加商品</button>
+                </div>
+            </div>
+            <hr>
+            <h5>销售清单</h5>
+            <table class="table table-sm" id="saleItemsTable">
+                <thead>
+                <tr><th>SKU</th><th>商品名</th><th>数量</th><th>销售单价</th><th>小计</th><th>操作</th></tr>
+                </thead>
+                <tbody id="saleItemsBody"></tbody>
+                <tfoot>
+                <tr><td colspan="4" class="text-end">总计：</td><td id="totalAmount">0.00</td><td></td></tr>
+                </tfoot>
+            </table>
+            <button class="btn btn-primary" onclick="submitSale()">提交销售单</button>
+            <div id="saleResult" class="mt-2"></div>
+        </div>
+    </div>
+
+    <script>
+        let saleItems = [];
+
+        function addSaleItem() {
+            let sku = $("#sku").val().trim();
+            let quantity = parseInt($("#quantity").val());
+            let salePrice = parseFloat($("#salePrice").val());
+            let customer = $("#customer").val().trim();
+
+            if (!sku || isNaN(quantity) || quantity <= 0) {
+                alert("请填写SKU和数量");
+                return;
+            }
+            $.get("/api/product/find/" + sku, function(product) {
+                if (!product) {
+                    alert("商品不存在");
+                    return;
+                }
+                if (isNaN(salePrice) || salePrice <= 0) {
+                    if (product.salePrice && product.salePrice > 0) {
+                        salePrice = product.salePrice;
+                        $("#salePrice").val(salePrice);
+                    } else {
+                        alert("请输入销售单价");
+                        return;
+                    }
+                }
+                // 检查重复添加
+                let existing = saleItems.find(item => item.sku === sku);
+                if (existing) {
+                    existing.quantity += quantity;
+                    existing.salePrice = salePrice;
+                } else {
+                    saleItems.push({
+                        productId: product.id,
+                        sku: sku,
+                        name: product.name,
+                        quantity: quantity,
+                        salePrice: salePrice
+                    });
+                }
+                renderSaleItems();
+                $("#sku, #quantity, #salePrice").val("");
+                $("#sku").focus();
+            });
+        }
+
+        function renderSaleItems() {
+            let tbody = $("#saleItemsBody");
+            tbody.empty();
+            let total = 0;
+            saleItems.forEach((item, idx) => {
+                let subtotal = item.quantity * item.salePrice;
+                total += subtotal;
+                let row = `<tr>
+                    <td>${item.sku}</td><td>${item.name}</td><td>${item.quantity}</td>
+                    <td>${item.salePrice.toFixed(2)}</td><td>${subtotal.toFixed(2)}</td>
+                    <td><button class="btn btn-sm btn-danger" onclick="removeSaleItem(${idx})">删除</button></td>
+                </tr>`;
+                tbody.append(row);
+            });
+            $("#totalAmount").text(total.toFixed(2));
+        }
+
+        function removeSaleItem(idx) {
+            saleItems.splice(idx, 1);
+            renderSaleItems();
+        }
+
+        function submitSale() {
+            if (saleItems.length === 0) {
+                alert("请至少添加一件商品");
+                return;
+            }
+            let customer = $("#customer").val().trim();
+            let orderNo = "SALE" + new Date().getTime();
+            let outboundDate = new Date().toISOString().slice(0,10);
+            let details = saleItems.map(item => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                salePrice: item.salePrice
+            }));
+            let requestData = {
+                orderNo: orderNo,
+                customer: customer,
+                outboundDate: outboundDate,
+                operator: "管理员",
+                remark: "销售出库",
+                details: details
+            };
+            $.ajax({
+                url: "/api/outbound/sale",
+                method: "POST",
+                contentType: "application/json",
+                data: JSON.stringify(requestData),
+                success: function() {
+                    alert("销售出库成功，单号：" + orderNo);
+                    saleItems = [];
+                    renderSaleItems();
+                    $("#customer").val("");
+                },
+                error: function(xhr) {
+                    alert("失败：" + xhr.responseText);
+                }
+            });
+
+        }
+    </script>
+</div>
+</body>
+</html>

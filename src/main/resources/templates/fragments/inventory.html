@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>库存管理片段</title>
+</head>
+<body>
+<div th:fragment="inventory">
+    <h2>库存管理</h2>
+    <!-- 扫码模拟 -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">模拟扫码枪</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label>商品SKU (扫描/输入后回车)</label>
+                    <input type="text" id="scanSku" class="form-control" autofocus>
+                </div>
+                <div class="col-md-8">
+                    <label>查询结果</label>
+                    <input type="text" id="scanResult" class="form-control" readonly placeholder="商品信息将显示在这里">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 商品列表 -->
+    <div class="card mb-4">
+        <div class="card-header">商品库存列表</div>
+        <div class="card-body">
+            <table class="table table-bordered" id="productTable">
+                <thead>
+                <tr><th>ID</th><th>SKU</th><th>名称</th><th>品牌</th><th>型号</th><th>当前库存</th><th>预警值</th></tr>
+                </thead>
+                <tbody id="productTbody"></tbody>
+            </table>
+            <button class="btn btn-sm btn-secondary" onclick="loadProducts()">刷新列表</button>
+        </div>
+    </div>
+
+    <!-- 入库表单 -->
+    <div class="card mb-4 border-success">
+        <div class="card-header bg-success text-white">入库操作</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3"><label>SKU</label><input id="inboundSku" class="form-control"></div>
+                <div class="col-md-2"><label>数量</label><input id="inboundQty" type="number" class="form-control"></div>
+                <div class="col-md-3"><label>单价</label><input id="inboundPrice" type="number" step="0.01" class="form-control"></div>
+                <div class="col-md-3"><label>供应商</label><input id="supplier" class="form-control"></div>
+                <div class="col-md-1 align-self-end"><button class="btn btn-success" onclick="doInbound()">入库</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 出库表单 -->
+    <div class="card mb-4 border-danger">
+        <div class="card-header bg-danger text-white">出库操作</div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3"><label>SKU</label><input id="outboundSku" class="form-control"></div>
+                <div class="col-md-2"><label>数量</label><input id="outboundQty" type="number" class="form-control"></div>
+                <div class="col-md-3"><label>客户/领用人</label><input id="customer" class="form-control"></div>
+                <div class="col-md-1 align-self-end"><button class="btn btn-danger" onclick="doOutbound()">出库</button></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function loadProducts() {
+            $.get("/api/product/list", function(products) {
+                let tbody = $("#productTbody");
+                tbody.empty();
+                products.forEach(p => {
+                    let row = `<tr id="row-${p.id}" data-alert="${p.alertQuantity}">
+                        <td>${p.id}</td>
+                        <td>${p.sku}</td>
+                        <td>${p.name}</td>
+                        <td>${p.brand || ''}</td>
+                        <td>${p.model || ''}</td>
+                        <td id="stock-${p.id}">加载中</td>
+                        <td>${p.alertQuantity}</td>
+                    </tr>`;
+                    tbody.append(row);
+                    // 加载库存
+                    $.get("/api/inventory/byProductId/" + p.id, function(inv) {
+                        let stock = inv ? inv.quantity : 0;
+                        $(`#stock-${p.id}`).text(stock);
+                        // 预警高亮
+                        if (stock < p.alertQuantity) {
+                            $(`#row-${p.id}`).addClass("tr-low-stock");
+                        } else {
+                            $(`#row-${p.id}`).removeClass("tr-low-stock");
+                        }
+                    }).fail(function() {
+                        $(`#stock-${p.id}`).text("0");
+                        if (0 < p.alertQuantity) {
+                            $(`#row-${p.id}`).addClass("tr-low-stock");
+                        }
+                    });
+                });
+            });
+        }
+
+        // 扫码枪模拟
+        $("#scanSku").on("keypress", function(e) {
+            if (e.which === 13) {
+                let sku = $(this).val().trim();
+                if (sku === "") return;
+                $.get("/api/product/find/" + sku, function(product) {
+                    if (product) {
+                        $("#scanResult").val(`${product.name} (${product.sku})`);
+                        $("#inboundSku").val(product.sku);
+                        $("#outboundSku").val(product.sku);
+                        $("#inboundQty").focus();
+                    } else {
+                        $("#scanResult").val("未找到商品");
+                    }
+                }).fail(() => $("#scanResult").val("查询失败"));
+                $(this).val("");
+            }
+        });
+
+        // 入库操作
+        function doInbound() {
+            let sku = $("#inboundSku").val().trim();
+            let quantity = parseInt($("#inboundQty").val());
+            let price = parseFloat($("#inboundPrice").val());
+            let supplier = $("#supplier").val().trim();
+            if (!sku || isNaN(quantity) || quantity <= 0) {
+                alert("请填写有效的SKU和数量");
+                return;
+            }
+            $.get("/api/product/find/" + sku, function(product) {
+                if (!product) {
+                    alert("商品不存在");
+                    return;
+                }
+                let orderNo = "IN" + new Date().getTime();
+                let inboundDate = new Date().toISOString().slice(0,10);
+                let details = [{
+                    productId: product.id,
+                    quantity: quantity,
+                    price: price,
+                    amount: price * quantity
+                }];
+                let url = "/api/inbound/create?orderNo=" + encodeURIComponent(orderNo)
+                    + "&supplier=" + encodeURIComponent(supplier)
+                    + "&inboundDate=" + encodeURIComponent(inboundDate)
+                    + "&operator=管理员"
+                    + "&remark=";
+                $.ajax({
+                    url: url,
+                    method: "POST",
+                    data: JSON.stringify(details),
+                    contentType: "application/json",
+                    success: function() {
+                        alert("入库成功");
+                        loadProducts();
+                        $("#inboundSku, #inboundQty, #inboundPrice, #supplier").val("");
+                    },
+                    error: function(xhr) {
+                        alert("入库失败: " + xhr.responseText);
+                    }
+                });
+            });
+        }
+
+        // 出库操作
+        function doOutbound() {
+            let sku = $("#outboundSku").val().trim();
+            let quantity = parseInt($("#outboundQty").val());
+            let customer = $("#customer").val().trim();
+            if (!sku || isNaN(quantity) || quantity <= 0) {
+                alert("请填写有效的SKU和数量");
+                return;
+            }
+            $.get("/api/product/find/" + sku, function(product) {
+                if (!product) {
+                    alert("商品不存在");
+                    return;
+                }
+                let orderNo = "OUT" + new Date().getTime();
+                let outboundDate = new Date().toISOString().slice(0,10);
+                let details = [{ productId: product.id, quantity: quantity }];
+                let url = "/api/outbound/create?orderNo=" + encodeURIComponent(orderNo)
+                    + "&customer=" + encodeURIComponent(customer)
+                    + "&outboundDate=" + encodeURIComponent(outboundDate)
+                    + "&operator=管理员"
+                    + "&remark=";
+                $.ajax({
+                    url: url,
+                    method: "POST",
+                    data: JSON.stringify(details),
+                    contentType: "application/json",
+                    success: function() {
+                        alert("出库成功");
+                        loadProducts();
+                        $("#outboundSku, #outboundQty, #customer").val("");
+                    },
+                    error: function(xhr) {
+                        alert("出库失败: " + xhr.responseText);
+                    }
+                });
+            });
+        }
+
+        $(document).ready(function() {
+            loadProducts();
+        });
+    </script>
+</div>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>商品管理</title>
+</head>
+<body>
+<div th:fragment="productManage">
+    <h2>商品管理</h2>
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">添加/编辑商品</div>
+        <div class="card-body">
+            <form id="productForm">
+                <input type="hidden" id="productId">
+                <div class="row">
+                    <div class="col-md-3"><label>SKU</label><input type="text" id="sku" class="form-control" required></div>
+                    <div class="col-md-3"><label>名称</label><input type="text" id="name" class="form-control" required></div>
+                    <div class="col-md-2"><label>品牌</label><input type="text" id="brand" class="form-control"></div>
+                    <div class="col-md-2"><label>型号</label><input type="text" id="model" class="form-control"></div>
+                    <div class="col-md-2"><label>单位</label><input type="text" id="unit" class="form-control" value="台"></div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-md-2"><label>进货价(元)</label><input type="number" step="0.01" id="price" class="form-control"></div>
+                    <div class="col-md-2"><label>预警值</label><input type="number" id="alertQuantity" class="form-control" value="10"></div>
+                    <div class="col-md-2"><label>规格</label><input type="text" id="spec" class="form-control"></div>
+                    <div class="col-md-2 align-self-end"><button type="button" class="btn btn-success" onclick="saveProduct()">保存</button></div>
+                    <div class="col-md-2 align-self-end"><button type="button" class="btn btn-secondary" onclick="resetForm()">重置</button></div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">商品列表</div>
+        <div class="card-body">
+            <table class="table table-bordered table-hover" id="productManageTable">
+                <thead>
+                <tr><th>ID</th><th>SKU</th><th>名称</th><th>品牌</th><th>型号</th><th>进货价</th><th>预警值</th><th>操作</th></tr>
+                </thead>
+                <tbody id="productManageTbody"></tbody>
+            </table>
+            <button class="btn btn-sm btn-primary" onclick="loadProductList()">刷新列表</button>
+        </div>
+    </div>
+
+    <script>
+        function loadProductList() {
+            $.get("/api/product/list", function(products) {
+                let tbody = $("#productManageTbody");
+                tbody.empty();
+                products.forEach(p => {
+                    let row = `<tr>
+                        <td>${p.id}</td>
+                        <td>${p.sku}</td>
+                        <td>${p.name}</td>
+                        <td>${p.brand || ''}</td>
+                        <td>${p.model || ''}</td>
+                        <td>${p.price || 0}</td>
+                        <td>${p.alertQuantity}</td>
+                        <td>
+                            <button class="btn btn-sm btn-info" onclick="editProduct(${p.id})">编辑</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteProduct(${p.id})">删除</button>
+                        </td>
+                    </tr>`;
+                    tbody.append(row);
+                });
+            });
+        }
+
+        function saveProduct() {
+            // 获取表单值
+            var id = $("#productId").val();
+            var sku = $("#sku").val().trim();
+            var name = $("#name").val().trim();
+            var brand = $("#brand").val().trim();
+            var model = $("#model").val().trim();
+            var unit = $("#unit").val().trim();
+            var price = parseFloat($("#price").val());
+            var alertQuantity = parseInt($("#alertQuantity").val());
+            var spec = $("#spec").val().trim();
+
+            if (!sku || !name) {
+                alert("SKU和名称不能为空");
+                return;
+            }
+            if (isNaN(price)) price = 0;
+            if (isNaN(alertQuantity)) alertQuantity = 10;
+
+            var product = {
+                sku: sku,
+                name: name,
+                brand: brand,
+                model: model,
+                unit: unit,
+                price: price,
+                alertQuantity: alertQuantity,
+                spec: spec
+            };
+            if (id) {
+                product.id = parseInt(id);
+            }
+
+            var url = id ? "/api/product/update" : "/api/product/add";
+            var method = id ? "PUT" : "POST";
+
+            $.ajax({
+                url: url,
+                method: method,
+                contentType: "application/json",
+                data: JSON.stringify(product),
+                success: function(result) {
+                    alert(id ? "更新成功" : "添加成功");
+                    resetForm();
+                    loadProductList();
+                },
+                error: function(xhr) {
+                    var msg = xhr.responseText;
+                    try {
+                        var json = JSON.parse(msg);
+                        msg = json.message || msg;
+                    } catch(e) {}
+                    alert("操作失败: " + msg);
+                }
+            });
+        }
+
+        function editProduct(id) {
+            $.get("/api/product/" + id, function(product) {
+                $("#productId").val(product.id);
+                $("#sku").val(product.sku);
+                $("#name").val(product.name);
+                $("#brand").val(product.brand);
+                $("#model").val(product.model);
+                $("#unit").val(product.unit);
+                $("#price").val(product.price);
+                $("#alertQuantity").val(product.alertQuantity);
+                $("#spec").val(product.spec);
+            });
+        }
+
+        function deleteProduct(id) {
+            if (confirm("确定删除该商品吗？")) {
+                $.ajax({
+                    url: "/api/product/delete/" + id,
+                    method: "DELETE",
+                    success: function() {
+                        alert("删除成功");
+                        loadProductList();
+                    },
+                    error: function(xhr) {
+                        alert("删除失败: " + xhr.responseText);
+                    }
+                });
+            }
+        }
+
+        function resetForm() {
+            $("#productId").val("");
+            $("#sku").val("");
+            $("#name").val("");
+            $("#brand").val("");
+            $("#model").val("");
+            $("#unit").val("台");
+            $("#price").val("");
+            $("#alertQuantity").val("10");
+            $("#spec").val("");
+        }
+
+        $(document).ready(function() {
+            loadProductList();
+        });
+    </script>
+</div>
+</body>
+</html>
